@@ -15,10 +15,10 @@ def get_db_connection():
                                             )
         
 
-        print("succsess")
+        print("succsess run config ")
         return connection
     except:
-        print("Somthing went wrong")
+        print("Somthing went wrong run config")
 
 
 get_db_connection()
