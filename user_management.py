@@ -82,6 +82,9 @@ def get_students():
 def add_students():
 
     logging.info('Entering add_students() - Adding a new student')
+    
+    connection = None
+    cursor = None
 
     try:
         
@@ -113,7 +116,7 @@ def add_students():
         exsiting_student = cursor.fetchone()
 
         if exsiting_student:
-            logging.warning(f'SStudent with index_number{index_number} or email {email} already exists.')
+            logging.warning(f'Student with index_number{index_number} or email {email} already exists.')
             return jsonify({'error': 'Student with this index number or email already exists'}), 400
         hashed_password = password('parent_nic')
         logging.info(f'Hashed password for parent_nic: {parent_nic}')
@@ -254,8 +257,6 @@ def update_Spermission(index_number):
         if connection:
             connection.close()
             logging.info('Connection closed')
-
-
 
 
 

@@ -2,9 +2,7 @@ import pymysql
 from dotenv import load_dotenv
 import os # os is python module for iteraction
 
-
 load_dotenv()
-
     
 def get_db_connection():
     try:
