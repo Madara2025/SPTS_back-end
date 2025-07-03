@@ -33,6 +33,7 @@ def get_students():
         cursor.execute("SELECT * FROM student JOIN student_login ON student.index_number = student_login.index_number")
         students = cursor.fetchall()
         logging.info(f'Retrieved {len(students)} students from the database')
+        print(students)
 
         student_list = [] # create array
         
@@ -51,8 +52,9 @@ def get_students():
                 'user_name': row[10],
                 'index_number': row [11],
                 'class_id': row[12],
-                'permission': row[13]
+                'permission': row[17]
             })
+            print(student_list)
 
         logging.info('Student list compiled')
         return jsonify(student_list)
@@ -80,6 +82,9 @@ def get_students():
 def add_students():
 
     logging.info('Entering add_students() - Adding a new student')
+    
+    connection = None
+    cursor = None
 
     try:
         
@@ -106,6 +111,13 @@ def add_students():
         class_id = data.get('class_id')
         permission = data.get('permission')
 
+        #check student already exists
+        cursor.execute("SELECT * FROM student WHERE index_number = %s or email = %s" , (index_number, email))
+        exsiting_student = cursor.fetchone()
+
+        if exsiting_student:
+            logging.warning(f'Student with index_number{index_number} or email {email} already exists.')
+            return jsonify({'error': 'Student with this index number or email already exists'}), 400
         hashed_password = password('parent_nic')
         logging.info(f'Hashed password for parent_nic: {parent_nic}')
 
@@ -113,14 +125,18 @@ def add_students():
                        (last_name, other_names, address, email, date_of_birth, parent_name, gender, contact_number, parent_nic, user_name, index_number, class_id))
         logging.info('Inserted student data into student table')
 
-        cursor.execute("INSERT INTO student_login (index_number, user_name, hashed_password, permission ) VALUES (%s, %s, %s, %s)",
-                       (index_number, user_name, hashed_password, permission))
+         # Retrieve the last inserted student_id
+        student_id = cursor.lastrowid
+        logging.info(f'Last inserted student_id: {student_id}')
+
+        cursor.execute("INSERT INTO student_login (index_number, user_name, hashed_password, permission,  student_id ) VALUES (%s, %s, %s, %s, %s)",
+                       (index_number, user_name, hashed_password, permission, student_id))
         logging.info('Inserted student login data into student_login table')
         
         connection.commit()
         logging.info('Transaction committed successfully')
         
-        return  jsonify({'success': 'Student added successfully'}), 201
+        return  jsonify({'success': 'Student added successfully' , 'student_id': student_id}), 201
 
     except Exception as e:
 
@@ -241,8 +257,6 @@ def update_Spermission(index_number):
         if connection:
             connection.close()
             logging.info('Connection closed')
-
-
 
 
 

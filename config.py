@@ -2,9 +2,7 @@ import pymysql
 from dotenv import load_dotenv
 import os # os is python module for iteraction
 
-
 load_dotenv()
-
     
 def get_db_connection():
     try:
@@ -15,10 +13,10 @@ def get_db_connection():
                                             )
         
 
-        print("succsess")
+        print("succsess run config ")
         return connection
     except:
-        print("Somthing went wrong")
+        print("Somthing went wrong run config")
 
 
 get_db_connection()
