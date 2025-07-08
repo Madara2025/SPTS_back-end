@@ -24,8 +24,8 @@ def get_students_by_class(class_id):
             SELECT
                 s.student_id,
                 s.Index_number AS index_number,
-                s.Last_name AS student_last_name,
-                s.Other_names AS student_other_names,
+                s.Last_name AS last_name,
+                s.Other_names AS other_names,
                 c.Grade AS grade,
                 c.Class_name AS class_name
             FROM
@@ -45,8 +45,8 @@ def get_students_by_class(class_id):
             class_studentslist.append({
                 'student_id': student_row[0],
                 'index_number': student_row[1],
-                'student_last_name': student_row[2],
-                'student_other_names': student_row[3],
+                'last_name': student_row[2],
+                'other_names': student_row[3],
                 'grade': student_row[4],
                 'class_name': student_row[5]
             })
