@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 from config import get_db_connection
 import bcrypt
 import logging
-from token_verify import required_jwt
+from token_verify import token_required
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -20,7 +20,7 @@ def check_password(password,hashedpw):
 #get all students
 
 @usr.route('/students', methods = ['GET'])
-@required_jwt
+@token_required
 def get_students(decoded):
 
     logging.info('Get all students')
@@ -85,7 +85,7 @@ def get_students(decoded):
 
 #add student
 @usr.route('/students', methods = ['POST'])
-@required_jwt
+@token_required
 def add_students(decoded):
 
     logging.info('Entering add_students() - Adding a new student')
@@ -117,7 +117,7 @@ def add_students(decoded):
         index_number = data.get('index_number')
         class_id = data.get('class_id')
         permission = data.get('permission')
-        hashed_password = password_hashed('parent_nic')
+        hashed_password = password_hashed(parent_nic)
         logging.info(f'Hashed password for parent_nic: {parent_nic}')
 
         #check student already exists
@@ -176,7 +176,7 @@ def add_students(decoded):
 
 #update student
 @usr.route('/students/<string:index_number>', methods = ['PUT'])
-@required_jwt
+@token_required
 def update_student(decoded, index_number):
 
     logging.info(f'Entering update_student() - Updating student with index_number: {index_number}')
@@ -238,7 +238,7 @@ def update_student(decoded, index_number):
             
 #remove student
 @usr.route('/students/remove/<string:index_number>', methods=['PUT'])
-@required_jwt
+@token_required
 def update_Spermission(decoded, index_number):
 
     logging.info(f'Entering update_Spermission() - Changeing permission student with index_number: {index_number}')
@@ -365,7 +365,7 @@ def add_teacher():
         nic_number = data.get('nic_number')
         emp_id = data.get('emp_id')
         permission = data.get('permission')
-        hashed_password = password_hashed('nic_number')
+        hashed_password = password_hashed(nic_number)
         logging.info(f'Hashed password for nic_number: {nic_number}')
         
         print(nic_number)
@@ -420,7 +420,7 @@ def add_teacher():
 
 #update teacher
 @usr.route('/teachers/<int:emp_id>', methods = ['PUT'])
-@required_jwt
+@token_required
 def update_teacher(decoded, emp_id):
 
     logging.info(f'Entering update_teacher() - Updating teacher with emp_id: {emp_id}')
@@ -479,7 +479,7 @@ def update_teacher(decoded, emp_id):
 
 #remove teacher
 @usr.route('/teachers/remove/<int:emp_id>', methods=['PUT'])
-@required_jwt
+@token_required
 def update_Tpermission(decoded, emp_id):
 
     logging.info(f'Entering update_Tpermission() - Changeing permission student with emp_id: {emp_id}')

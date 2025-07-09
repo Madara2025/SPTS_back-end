@@ -13,12 +13,13 @@ Secret_Key = os.getenv('token_secret')
 log_bp = Blueprint('login', __name__)
 
 def create_token(user_id,user_name):
-            Token = jwt.encode({
+            token = jwt.encode({
                          'exp' : datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=15),
                          'user_id': user_id,
                          'user_name': user_name}, Secret_Key, algorithm ='HS256')
             logging.info(f"Token genarate using User Id: {user_id} and User name: {user_name}")
-            return Token
+            return token
+
 
 @log_bp.route('/login', methods=['POST'])
 def login():
@@ -27,8 +28,6 @@ def login():
             data = request.get_json()
             user_name = data.get('user_name') # asign value from front end json object
             password = data.get('password')
-
-            print(password)
 
             if not user_name or not password:
                   logging.warning("Email and Password are required")
@@ -52,12 +51,17 @@ def login():
                      
                         logging.info(f"User found:{user_name} with permission:{permission}")
 
+                         # Log the password and hashed password for debugging
+                        logging.info(f"Password entered: {password}")
+                        logging.info(f"Hashed password from DB: {hashed_Password}")
+
                         if bcrypt.checkpw(password.encode('utf-8'), hashed_Password.encode('utf-8')):
+                              
                               if permission == "TRUE":
                                  token = create_token(teacher_id,user_name)
 
                                  #Store token in database
-                                 cursor.execute("UPDATE teacher_login SET jwt_token = %s WHERE teacher_id = %s", (teacher_id))
+                                 cursor.execute("UPDATE teacher_login SET jwt_token = %s WHERE teacher_id = %s", (token, teacher_id))
                                  connection.commit()
                                  logging.info(f"Token stored database for User ID:{teacher_id}")
                                  logging.info(f"Login Successful for User ID:{teacher_id}") 

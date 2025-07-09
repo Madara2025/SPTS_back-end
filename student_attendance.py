@@ -70,6 +70,7 @@ def get_students_by_class(class_id):
         if connection:
             connection.close()
             logging.info('Database connection closed.')
+            
 
 # Add student attendace to the database
 @std_att.route('/attendance', methods=['POST'])
