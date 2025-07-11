@@ -182,14 +182,58 @@ def add_students(decoded):
         if connection:
             connection.close()
             logging.info('Connection closed')
-       
+
+
+#get on student using student_id            
+@usr.route('/students/<int:student_id>', methods=['GET'])
+#@token_required
+def get_student( student_id):
+    logging.info(f"GET request for /students/{student_id}")
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+        cursor.execute("SELECT * FROM student WHERE student_id = %s", (student_id,))
+        result = cursor.fetchone()
+
+        if result:
+            student = {
+                'student_id': result[0],
+                'last_name': result[1],
+                'other_names': result[2],
+                'address': result[3],
+                'email': result[4],
+                'date_of_birth':str(result[5]) ,
+                'parent_name': result[6],
+                'gender': result[7],
+                'contact_number': result[8],
+                'parent_nic': result[9],
+                'user_name': result[10],
+                'index_number': result [11],
+                'class_id': result[12],
+                
+            }
+            return jsonify(student), 200
+        else:
+            return jsonify({'error': 'Student not found'}), 404
+
+    except Exception as e:
+        logging.error(f"Error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()       
 
 #update student
-@usr.route('/students/<string:index_number>', methods = ['PUT'])
+@usr.route('/students/<int:student_id>', methods = ['PUT'])
 @token_required
-def update_student(decoded, index_number):
+def update_student(decoded, student_id):
 
-    logging.info(f'Entering update_student from PUT request for /students/index_number: {index_number}')
+    logging.info(f'Entering update_student from PUT request for /students/index_number: {student_id}')
     
     try:
         connection = get_db_connection() 
