@@ -12,12 +12,14 @@ Secret_Key = os.getenv('token_secret')
 
 log_bp = Blueprint('login', __name__)
 
-def create_token(user_id,user_name):
+def create_token(user_id,user_name,user_type):
             token = jwt.encode({
-                         'exp' : datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=15),
-                         'user_id': user_id,
-                         'user_name': user_name}, Secret_Key, algorithm ='HS256')
-            logging.info(f"Token genarate using User Id: {user_id} and User name: {user_name}")
+                        'exp' : datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=2),
+                        'user_id': user_id,
+                        'user_name': user_name,
+                        'user_type': user_type }, Secret_Key, algorithm ='HS256')
+                        
+            logging.info(f"Token genarate using User Id: {user_id} , User name: {user_name}, Type: {user_type}")
             return token
 
 
@@ -43,53 +45,117 @@ def login():
                         return jsonify({"error": "Databassee connection is failed"}), 500
                   
                   cursor = connection.cursor()
-                  cursor.execute("SELECT teacher_login.teacher_id, teacher_login.user_name, teacher_login.hashed_password, teacher_login.permission, teacher.role FROM teacher_login INNER JOIN teacher ON teacher_login.teacher_id = teacher.teacher_id WHERE teacher_login.user_name = %s", (user_name))
-                  user = cursor.fetchone()
+                  
+                  # --- Attempt to authenticate as a Teacher ---
+                  logging.info(f"Try to log in {user_name} as a teacher...")
 
-                  if user:
-                        teacher_id, user_name, hashed_Password, permission, role = user
-                     
-                        logging.info(f"User found:{user_name} with permission:{permission}")
+                  # Query the 'teacher_login' table, joining with 'teacher' table to get role
+                  cursor.execute(
+                  "SELECT tl.teacher_id, tl.user_name, tl.hashed_password, tl.permission, t.role "
+                  "FROM teacher_login tl INNER JOIN teacher t ON tl.teacher_id = t.teacher_id "
+                  "WHERE tl.user_name = %s", (user_name,)
+                  )
 
-                         # Log the password and hashed password for debugging
-                        logging.info(f"Password entered: {password}")
-                        logging.info(f"Hashed password from DB: {hashed_Password}")
+                  teacher_user = cursor.fetchone() # Fetch the first matching teacher record
 
-                        if bcrypt.checkpw(password.encode('utf-8'), hashed_Password.encode('utf-8')):
+                  if teacher_user:
+                              teacher_id, teacher_username, hashed_password, permission, role = teacher_user
+                              logging.info(f"Teacher found: {teacher_username} with permission: {permission}")
+
+                              if bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8')):
+
+                                    if permission == "TRUE":
+                                          # If password is correct and permission is true, create a token for the teacher
+                                          token = create_token(teacher_id, teacher_username, role) # Pass 'teacher' as user_type
+
+                                          # Store the newly generated token in the 'teacher_login' table
+                                          cursor.execute("UPDATE teacher_login SET jwt_token = %s WHERE teacher_id = %s", (token, teacher_id))
+                                          connection.commit() # Commit the changes to the database
                               
-                              if permission == "TRUE":
-                                 token = create_token(teacher_id,user_name)
+                                          logging.info(f"Teacher token stored in database for User ID: {teacher_id}")
+                                          logging.info(f"Login successful for Teacher User ID: {teacher_id}") 
 
-                                 #Store token in database
-                                 cursor.execute("UPDATE teacher_login SET jwt_token = %s WHERE teacher_id = %s", (token, teacher_id))
-                                 connection.commit()
-                                 logging.info(f"Token stored database for User ID:{teacher_id}")
-                                 logging.info(f"Login Successful for User ID:{teacher_id}") 
-
-                                 return jsonify({"message": "Login successful", 
-                                                 "user": {"teacher_id":teacher_id, "user_name":user_name, "permission":permission, "role":role} ,
-                                                 "token": token}), 200
-                  
+                                          # Return a success response with user details and the token
+                                          return jsonify({
+                                          "message": "Login successful", 
+                                          "user": {
+                                          "user_id": teacher_id, 
+                                          "user_name": teacher_username, 
+                                          "permission": permission, 
+                                          "role": role,
+                                          },
+                                          "token": token
+                                          }), 200
+                              
+                                    else:
+                                     # If teacher account does not have permission
+                                     logging.warning(f"Access denied for teacher user ID: {teacher_id} - Account permission is FALSE.")
+                                    return jsonify({"error":"You don't have permission to log in"}), 403
                               else:
-                                    logging.warning(f"Don't have permission for user ID: {teacher_id} - Account permission FALSE")
-                                    return jsonify({"error":"You don't have permission"}), 403
+                                    # If password does not match
+                                    logging.warning(f"Invalid password for teacher user: {user_name}.")
+                                    return jsonify({"error":"Invalid user name or password"}), 401
+            
+                  logging.info(f"Teacher login failed for {user_name}. Try to log in as a student...")
+                  cursor.execute(
+                        "SELECT student_id , user_name, hashed_password, permission " 
+                        "FROM student_login WHERE user_name = %s", (user_name,)
+                  )
+                  student_user = cursor.fetchone()
+
+                  if student_user:
+                        # Ensure the unpacking matches the columns selected in the query
+                        student_id, student_username, hashed_password, permission = student_user
+                        logging.info(f"Student found: {student_username} with permission: {permission}")
+                       
+                        if bcrypt.checkpw(password.encode('utf-8'), hashed_password.encode('utf-8')):
+                              if permission == "TRUE":
+                              # If password is correct, create a token for the student
+                                    token = create_token(student_id, student_username, 'student') 
+
+                              # Store the newly generated token in the 'student_login' table
+                                    cursor.execute("UPDATE student_login SET jwt_token = %s WHERE student_id = %s", (token, student_id))
+                                    connection.commit() 
+                  
+                                    logging.info(f"Student token stored in database for User ID: {student_id}")
+                                    logging.info(f"Login successful for Student User ID: {student_id}") 
+
+                                    # Return a success response with student details and the token
+                                    return jsonify({
+                                    "message": "Login successful", 
+                                    "user": {
+                                    "user_id": student_id, 
+                                    "user_name": student_username, 
+                                    "permission": permission, 
+                                    "role": 'student',
+                                     },
+                                    "token": token
+                                    }), 200
+                         
+                              else:
+                                     # If student account does not have permission
+                                     logging.warning(f"Access denied for teacher user ID: {student_id} - Account permission is FALSE.")
+                                     return jsonify({"error":"You don't have permission to log in"}), 403
                         else:
-                              logging.warning(f"Invalid password for password: {password}")
-                              return jsonify({"error":"Inavalid user name or password"}), 401
+                         # If password does not match for student
+                         logging.warning(f"Invalid password for student user: {user_name}.")
+                         return jsonify({"error":"Invalid user name or password"}), 401
                   else:
-                        logging.warning(f"Invalid user name: {teacher_id} - User not found")
-                        return jsonify({"error":"Inavalid user name or password"}), 401
-                  
-                  
+                        # If the user_name was not found in either the teacher or student tables
+                        logging.warning(f"Login failed: User '{user_name}' not found in teacher or student records.")
+                        return jsonify({"error":"Invalid user name or password"}), 401
+            
             except Exception as e:
-                              logging.error(f"Login error: {e}")
-                              return jsonify({"error": "An unexpected error occurred"}), 500
+                
+                  logging.error(f"An unexpected error occurred during login: {e}", exc_info=True) 
+                  return jsonify({"error": "An unexpected error occurred during login"}), 500
             finally:
+                
                   if cursor:
                         cursor.close()
-                        logging.info('Cursor closed.')
+                        logging.info('Database cursor closed.')
                   if connection:
                         connection.close()
                         logging.info('Database connection closed.')
 
-
+            

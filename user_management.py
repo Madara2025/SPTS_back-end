@@ -23,7 +23,7 @@ def check_password(password,hashedpw):
 @token_required
 def get_students(decoded):
 
-    logging.info('Get all students')
+    logging.info(f"Get all students from GET request for /students") 
     
     connection = None
     cursor = None
@@ -36,10 +36,10 @@ def get_students(decoded):
         cursor = connection.cursor()
         logging.info('Cursor created')
 
-        cursor.execute("SELECT * FROM student JOIN student_login ON student.index_number = student_login.index_number")
+        cursor.execute("SELECT * FROM student JOIN student_login ON student.index_number = student_login.index_number JOIN class ON student.Class_id = class.class_id")
         students = cursor.fetchall()
         logging.info(f'Retrieved {len(students)} students from the database')
-        print(students)
+        logging.info(f'Compiled Student list{students}')
 
         student_list = [] # create array
         
@@ -57,11 +57,12 @@ def get_students(decoded):
                 'parent_nic': row[9],
                 'user_name': row[10],
                 'index_number': row [11],
-                'class_id': row[12],
+                'grade': row[20],
+                'class_name': row[21],
                 'permission': row[18]
             })
-            print(student_list)
-
+            
+            
         logging.info('Student list compiled')
         return jsonify(student_list)
 
@@ -88,8 +89,7 @@ def get_students(decoded):
 @token_required
 def add_students(decoded):
 
-    logging.info('Entering add_students() - Adding a new student')
-    
+    logging.info('Entering add_students from POST request for /students') 
     connection = None
     cursor = None
 
@@ -118,7 +118,14 @@ def add_students(decoded):
         class_id = data.get('class_id')
         permission = data.get('permission')
         hashed_password = password_hashed(parent_nic)
+        selected_subjects = data.get('selected_subjects', [])
         logging.info(f'Hashed password for parent_nic: {parent_nic}')
+
+        common_subjects = get_mandatory_subject_ids(cursor)
+        
+        all_subjects = list(set(selected_subjects + common_subjects))
+        logging.info(f"All subjects to enroll (including mandatory): {all_subjects}")
+        
 
         #check student already exists
         cursor.execute("SELECT * FROM student WHERE index_number = %s or email = %s" , (index_number, email))
@@ -133,24 +140,27 @@ def add_students(decoded):
                        (last_name, other_names, address, email, date_of_birth, parent_name, gender, contact_number, parent_nic, user_name, index_number, class_id))
         logging.info('Inserted student data into student table')
         connection.commit()
-
+        
+        # Retrieve the last inserted student_id
         cursor.execute("SELECT student_id FROM student WHERE user_name = %s AND parent_nic = %s", (user_name, parent_nic))
         connection.commit()
 
         result = cursor.fetchone() 
-    
+        print(result)
+
         student_id = None
         if result:
-            student_id = result[0]
-
-
-         # Retrieve the last inserted student_id
-        student_id = cursor.lastrowid
+            student_id = result[0]         
+       
         logging.info(f'Last inserted student_id: {student_id}')
 
         cursor.execute("INSERT INTO student_login (index_number, user_name, hashed_password, permission,  student_id ) VALUES (%s, %s, %s, %s, %s)",
                        (index_number, user_name, hashed_password, permission, student_id))
         logging.info('Inserted student login data into student_login table')
+
+        for subject_id in all_subjects:
+            cursor.execute("INSERT INTO studentsubject (student_id, subject_id, Class_id) VALUES (%s, %s, %s)", (student_id, subject_id, class_id))
+            logging.info(f'Linked student {student_id} to subject {subject_id}')
         
         connection.commit()
         logging.info('Transaction committed successfully')
@@ -179,8 +189,8 @@ def add_students(decoded):
 @token_required
 def update_student(decoded, index_number):
 
-    logging.info(f'Entering update_student() - Updating student with index_number: {index_number}')
-
+    logging.info(f'Entering update_student from PUT request for /students/index_number: {index_number}')
+    
     try:
         connection = get_db_connection() 
         logging.info('Successfully connected to the database')
@@ -241,7 +251,7 @@ def update_student(decoded, index_number):
 @token_required
 def update_Spermission(decoded, index_number):
 
-    logging.info(f'Entering update_Spermission() - Changeing permission student with index_number: {index_number}')
+    logging.info(f'Entering update_student from PUT request for /students/remove/index_number: {index_number}')
 
     data = request.get_json()
     if not data:
@@ -283,9 +293,10 @@ def update_Spermission(decoded, index_number):
 
 #get all teachers
 @usr.route('/teachers', methods = ['GET'])
-def get_teachers():
+@token_required
+def get_teachers(decoded):
 
-    logging.info('Get all teachers')
+    logging.info(f"Get all Teachers from GET request for /teachers")
 
     try:
 
@@ -339,9 +350,10 @@ def get_teachers():
         
 #add teacher
 @usr.route('/teachers', methods = ['POST'])
-def add_teacher():
+@token_required
+def add_teacher(decoded):
 
-    logging.info('Entering add_teacher() - Adding a new teacher')
+    logging.info('Entering add_teacher from POST request for /teachers') 
     
     try:
         connection = get_db_connection()
@@ -366,7 +378,6 @@ def add_teacher():
         emp_id = data.get('emp_id')
         permission = data.get('permission')
         hashed_password = password_hashed(nic_number)
-        logging.info(f'Hashed password for nic_number: {nic_number}')
         
         print(nic_number)
 
@@ -400,7 +411,7 @@ def add_teacher():
         
         connection.commit()
         logging.info('Transaction committed successfully')
-        return  jsonify({'success': 'Student added successfully' , 'teacher_id': teacher_id}), 201
+        return  jsonify({'success': 'Teacher added successfully' , 'teacher_id': teacher_id}), 201
 
     except Exception as e:
         logging.error(f'Error in add_teachers(): {e}', exc_info=True)
@@ -423,7 +434,7 @@ def add_teacher():
 @token_required
 def update_teacher(decoded, emp_id):
 
-    logging.info(f'Entering update_teacher() - Updating teacher with emp_id: {emp_id}')
+    logging.info(f'Entering update_teacher from PUT request for /teachers/emp_id: {emp_id}')
 
     try:
         connection = get_db_connection()
@@ -482,7 +493,7 @@ def update_teacher(decoded, emp_id):
 @token_required
 def update_Tpermission(decoded, emp_id):
 
-    logging.info(f'Entering update_Tpermission() - Changeing permission student with emp_id: {emp_id}')
+    logging.info(f'Entering update_Tpermission from PUT request for /teachers/remove/emp_id: {emp_id}')
 
     data = request.get_json()
     if not data:
@@ -520,3 +531,134 @@ def update_Tpermission(decoded, emp_id):
         if connection:
             connection.close()
             logging.info('Connection closed')
+
+
+
+# get subjects group vice
+@usr.route('/subjects', methods=['GET'])
+@token_required
+def get_subjects(decoded):
+    logging.info("Attempting to retrieve all subjects.")
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        logging.info('Successfully connected to the database for subjects.')
+        cursor = connection.cursor()
+        logging.info('Cursor created for subjects.')
+
+        all_grouped_subjects = {}
+
+        #Fetch Esthetic (C1) subjects
+        cursor.execute("SELECT subject_id, Medium, subject_name, subject_category FROM subject WHERE subject_category = 'C1'")
+        Esthetic_sub = cursor.fetchall()
+        logging.info(f'Retrieved {len(Esthetic_sub)} subjects from the database.')
+        logging.info(f'Compiled Esthetic_sub:{Esthetic_sub}')
+
+        esthetic_list = []
+        for row in Esthetic_sub:
+            esthetic_list.append({
+                'subject_id': row[0],
+                'medium' : row[1],
+                'subject_name': row[2],
+                'subject_category':row[3]
+            })
+
+            all_grouped_subjects['C1'] = esthetic_list
+
+        #Fetch Science subjects
+        cursor.execute("SELECT subject_id, Medium, subject_name, subject_category FROM subject WHERE subject_category = 'Science'")
+        Science_sub = cursor.fetchall()
+        logging.info(f'Retrieved {len(Science_sub)} subjects from the database.')
+        logging.info(f'Compiled Esthetic_sub:{Science_sub}')
+
+        science_list = []
+        for row in Science_sub:
+            science_list.append({
+                'subject_id': row[0],
+                'medium' : row[1],
+                'subject_name': row[2],
+                'subject_category':row[3]
+            })
+
+            all_grouped_subjects['Science'] = science_list
+            
+        #Fetch Maths subjects
+        cursor.execute("SELECT subject_id, Medium, subject_name, subject_category FROM subject WHERE subject_category = 'Maths'")
+        Maths_sub = cursor.fetchall()
+        logging.info(f'Retrieved {len(Maths_sub)} subjects from the database.')
+        logging.info(f'Compiled Esthetic_sub:{Maths_sub}')
+
+        maths_list = []
+        for row in Maths_sub:
+            maths_list.append({
+                'subject_id': row[0],
+                'medium' : row[1],
+                'subject_name': row[2],
+                'subject_category':row[3]
+            })
+
+            all_grouped_subjects['Maths'] = maths_list
+
+        #Fetch Civc subjects
+        cursor.execute("SELECT subject_id, Medium, subject_name, subject_category FROM subject WHERE subject_category = 'Civic'")
+        Civic_sub = cursor.fetchall()
+        logging.info(f'Retrieved {len(Civic_sub)} subjects from the database.')
+        logging.info(f'Compiled Esthetic_sub:{Civic_sub}')
+
+        civic_list = []
+        for row in Civic_sub:
+            civic_list.append({
+                'subject_id': row[0],
+                'medium' : row[1],
+                'subject_name': row[2],
+                'subject_category':row[3]
+            })
+
+            all_grouped_subjects['Civic'] = civic_list
+
+        #Fetch Health subjects
+        cursor.execute("SELECT subject_id, Medium, subject_name, subject_category FROM subject WHERE subject_category = 'Health'")
+        Health_sub = cursor.fetchall()
+        logging.info(f'Retrieved {len(Health_sub)} subjects from the database.')
+        logging.info(f'Compiled Esthetic_sub:{Health_sub}')
+
+        health_list = []
+        for row in Health_sub:
+            health_list.append({
+                'subject_id': row[0],
+                'medium' : row[1],
+                'subject_name': row[2],
+                'subject_category':row[3]
+            })
+
+            all_grouped_subjects['Health'] = health_list
+            
+
+        logging.info('Subject list compiled successfully.')
+        return jsonify(all_grouped_subjects), 200
+
+    except Exception as e:
+        logging.error(f'Error in get_subjects(): {e}', exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    finally:
+        if cursor:
+            cursor.close()
+            logging.info('Cursor for subjects closed.')
+        if connection:
+            connection.close()
+            logging.info('Connection for subjects closed.')
+
+#call common subject
+def get_mandatory_subject_ids(cursor):
+    
+    try:
+        cursor.execute("SELECT subject_id FROM subject WHERE subject_category = %s", ('T',))
+        common_subjects = [row[0] for row in cursor.fetchall()]
+
+        logging.info(f"Fetched mandatory subjects (T group): {common_subjects}")
+        return common_subjects
+    
+    except Exception as e:
+        logging.error(f"Error fetching mandatory subjects: {e}")
+        return [] # Return empty list in case of error
