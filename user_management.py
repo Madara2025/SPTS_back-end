@@ -20,8 +20,8 @@ def check_password(password,hashedpw):
 #get all students
 
 @usr.route('/students', methods = ['GET'])
-@token_required
-def get_students(decoded):
+
+def get_students():
 
     logging.info(f"Get all students from GET request for /students") 
     
@@ -86,8 +86,10 @@ def get_students(decoded):
 
 #add student
 @usr.route('/students', methods = ['POST'])
-@token_required
-def add_students(decoded):
+
+def add_students(
+    
+):
 
     logging.info('Entering add_students from POST request for /students') 
     connection = None
@@ -186,7 +188,7 @@ def add_students(decoded):
 
 #get on student using student_id            
 @usr.route('/students/<int:student_id>', methods=['GET'])
-#@token_required
+
 def get_student( student_id):
     logging.info(f"GET request for /students/{student_id}")
     connection = None
@@ -230,49 +232,55 @@ def get_student( student_id):
 
 #update student
 @usr.route('/students/<int:student_id>', methods = ['PUT'])
-@token_required
-def update_student(decoded, student_id):
+
+def update_student(student_id):
 
     logging.info(f'Entering update_student from PUT request for /students/index_number: {student_id}')
+    data = request.get_json()
+    logging.info(f"Received JSON: {data}")
+
+    last_name = data.get('last_name')
+    other_names = data.get('other_names')
+    address = data.get('address')
+    email = data.get('email')
+    date_of_birth = data.get('date_of_birth')
+    parent_name = data.get('parent_name')
+    gender = data.get('gender')
+    contact_number = data.get('contact_number')
+    parent_nic = data.get('parent_nic')
+    user_name = data.get('user_name')
+    index_number = data.get('index_number')
+    class_id = data.get('class_id')
+    password = data.get('password')
+
+    hashed_pw = None
+    if password:
+        hashed_pw = password_hashed(password)
+
+    connection = None
+    cursor = None
     
     try:
         connection = get_db_connection() 
         logging.info('Successfully connected to the database')
         
         cursor = connection.cursor()
-        logging.info('Cursor created')
-
-        data = request.get_json()
-        logging.info(f'Received data: {data}')
-        last_name = data.get('last_name')
-        other_names = data.get('other_names')
-        address = data.get('address')
-        email = data.get('email')
-        date_of_birth = data.get('date_of_birth')
-        parent_name = data.get('parent_name')
-        gender = data.get('gender')
-        contact_number = data.get('contact_number')
-        parent_nic = data.get('parent_nic')
-        user_name = data.get('user_name')
-        index_number = data.get('index_number')
-        class_id = data.get('class_id')
-        permission = data.get('permission')
+        logging.info('Cursor created')     
                 
-
-        cursor.execute("UPDATE student SET last_name = %s, other_names = %s, address = %s, email = %s, date_of_birth = %s, parent_name = %s, gender = %s, contact_number = %s, parent_nic = %s, user_name = %s, class_id = %s WHERE index_number = %s ", 
-                       (last_name, other_names, address, email, date_of_birth, parent_name, gender, contact_number, parent_nic, user_name, index_number, class_id))
+        cursor.execute("UPDATE student SET last_name = %s, other_names = %s, address = %s, email = %s, date_of_birth = %s, parent_name = %s, gender = %s, contact_number = %s, parent_nic = %s, user_name = %s, index_number = %s, class_id = %s WHERE student_id = %s ", 
+                       (last_name, other_names, address, email, date_of_birth, parent_name, gender, contact_number, parent_nic, user_name, index_number, class_id, student_id))
         logging.info('Updated student data in student table')
         
- 
-        cursor.execute("UPDATE student_login SET user_name = %s, permission = %s WHERE index_number = %s", 
-                       (user_name, permission, index_number))
-        logging.info('Updated student login data in student_login table')
 
+        if hashed_pw:
+            cursor.execute("UPDATE student_login SET user_name = %s, hashed_password = %s WHERE student_id = %s", (user_name, hashed_pw, student_id))
+        else:
+            cursor.execute("UPDATE student_login SET user_name = %s WHERE student_id = %s", (user_name, student_id))
         connection.commit()
-        logging.info('Transaction committed successfully')
 
+        return jsonify({'message': 'Student updated successfully'}), 200
 
-        return jsonify({'success': 'Student updated successfully'}),201
+ 
     
     except Exception as e:
 
@@ -292,8 +300,8 @@ def update_student(decoded, student_id):
             
 #remove student
 @usr.route('/students/remove/<string:index_number>', methods=['PUT'])
-@token_required
-def update_Spermission(decoded, index_number):
+
+def update_Spermission( index_number):
 
     logging.info(f'Entering update_student from PUT request for /students/remove/index_number: {index_number}')
 
@@ -337,8 +345,8 @@ def update_Spermission(decoded, index_number):
 
 #get all teachers
 @usr.route('/teachers', methods = ['GET'])
-@token_required
-def get_teachers(decoded):
+
+def get_teachers():
 
     logging.info(f"Get all Teachers from GET request for /teachers")
 
@@ -394,8 +402,8 @@ def get_teachers(decoded):
         
 #add teacher
 @usr.route('/teachers', methods = ['POST'])
-@token_required
-def add_teacher(decoded):
+
+def add_teacher():
 
     logging.info('Entering add_teacher from POST request for /teachers') 
     
@@ -473,12 +481,58 @@ def add_teacher(decoded):
             logging.info('Connection closed')
 
 
-#update teacher
-@usr.route('/teachers/<int:emp_id>', methods = ['PUT'])
-@token_required
-def update_teacher(decoded, emp_id):
+#get on teacher using teacher_id            
+@usr.route('/teachers/<int:teacher_id>', methods=['GET'])
 
-    logging.info(f'Entering update_teacher from PUT request for /teachers/emp_id: {emp_id}')
+def get_teacher( teacher_id):
+    logging.info(f"GET request for /teachers/{teacher_id}")
+    connection = None
+    cursor = None
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+        cursor.execute("SELECT * FROM teacher WHERE teacher_id = %s", (teacher_id,))
+        result = cursor.fetchone()
+
+        if result:
+            teacher = {
+                'teacher_id': result[0],
+                'last_name': result[1],
+                'other_names': result[2],
+                'address': result[3],
+                'email': result[4],
+                'date_of_birth':str(result[5]) ,
+                'personal_title': result[6],
+                'role': result[7],
+                'contact_number': result[8],
+                'user_name': result[9],
+                'nic_number': result [10],
+                'emp_id': result[11],
+                
+            }
+            return jsonify(teacher), 200
+        else:
+            return jsonify({'error': 'Teacher not found'}), 404
+
+    except Exception as e:
+        logging.error(f"Error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+    finally:
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()    
+
+
+#update teacher
+@usr.route('/teachers/<int:teacher_id>', methods = ['PUT'])
+
+def update_teacher(teacher_id):
+
+    logging.info(f'Entering update_teacher from PUT request for /teachers/teacher_id: {teacher_id}')
+    connection = None
+    cursor = None
 
     try:
         connection = get_db_connection()
@@ -490,31 +544,40 @@ def update_teacher(decoded, emp_id):
         data = request.get_json()
         logging.info(f'Received data: {data}')
 
+        emp_id = data.get('emp_id')
         last_name = data.get('last_name')
         other_names = data.get('other_names')
         address = data.get('address')
         email = data.get('email')
-        birth_day = data.get('birth_day')
+        date_of_birth = data.get('date_of_birth')
         personal_title = data.get('personal_title')
         role = data.get('role')
         contact_number = data.get('contact_number')
         user_name = data.get('user_name')
         nic_number = data.get('nic_number')
         emp_id = data.get('emp_id')
-        permission = data.get('permission')
+        password = data.get('password')
 
-        cursor.execute("UPDATE teacher SET last_name = %s, other_names = %s, address = %s, email = %s, birth_day = %s, personal_title = %s, role = %s, contact_number = %s, user_name = %s, nic_number = %s, emp_id = %s WHERE emp_id = %s ", 
-                       (last_name, other_names, address, email, birth_day, personal_title, role, contact_number, user_name, nic_number, emp_id ))
+        hashed_pw = None
+        if password:
+            hashed_pw = password_hashed(password)
+
+        cursor.execute("UPDATE teacher SET emp_id = %s,last_name = %s, other_names = %s, address = %s, email = %s, date_of_birth = %s, personal_title = %s, role = %s, contact_number = %s, user_name = %s, nic_number = %s WHERE teacher_id = %s ", 
+                       (emp_id,last_name, other_names, address, email, date_of_birth, personal_title, role, contact_number, user_name, nic_number, teacher_id ))
         logging.info('Updated teacher data in teacher table')
 
-        cursor.execute("UPDATE teacher_login SET user_name = %s, permission = %s WHERE emp_id = %s" , 
-                       (user_name, permission, emp_id,))
-        logging.info('Updated teacher login data in teacher_login table')
+        if hashed_pw:
 
+            cursor.execute("UPDATE teacher_login SET user_name = %s, hashed_password = %s WHERE teacher_id = %s" , 
+                       (user_name, hashed_pw, teacher_id,))
+            logging.info('Updated teacher login data in teacher_login table')
+
+        else:
+            cursor.execute("UPDATE teacher_login SET user_name = %s WHERE teacher_id = %s", (user_name, teacher_id))
         connection.commit()
-        logging.info('Transaction committed successfully')
 
-        return jsonify({'success': 'teacher updated successfully'}),201
+        return jsonify({'message': 'teacher updated successfully'}), 200
+
     
     except Exception as e:
         logging.error(f'Error in update_teacher(): {e}', exc_info=True)
@@ -534,8 +597,8 @@ def update_teacher(decoded, emp_id):
 
 #remove teacher
 @usr.route('/teachers/remove/<int:emp_id>', methods=['PUT'])
-@token_required
-def update_Tpermission(decoded, emp_id):
+
+def update_Tpermission( emp_id):
 
     logging.info(f'Entering update_Tpermission from PUT request for /teachers/remove/emp_id: {emp_id}')
 
@@ -580,8 +643,8 @@ def update_Tpermission(decoded, emp_id):
 
 # get subjects group vice
 @usr.route('/subjects', methods=['GET'])
-@token_required
-def get_subjects(decoded):
+
+def get_subjects():
     logging.info("Attempting to retrieve all subjects.")
     connection = None
     cursor = None

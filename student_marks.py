@@ -117,6 +117,7 @@ def get_students(class_id,teacher_id,subject_id):
         class_studentslist = []
         for student_row in students_data:
                 class_studentslist.append({
+                    
                     'subject_id': student_row[0],
                     'teacher_id': student_row[2],
                     'index_number': student_row[4],
@@ -178,7 +179,7 @@ def add_marks():
 
         # Iterate through each individual mark entry in the list
         for data in all_marks:
-            required_fields = ['student_id', 'subject_id', 'teacher_id', 'marks', 'Term_year']
+            required_fields = ['student_id', 'subject_id', 'teacher_id', 'marks', 'Term_year','assignment_id']
 
             # Corrected: Check if all required fields are present in the current 'data' dictionary
             if not all(field in data for field in required_fields):
@@ -191,6 +192,7 @@ def add_marks():
             teacher_id = data.get('teacher_id')
             marks = data.get('marks')
             term_year = data.get('Term_year') 
+            assignment_id = data.get('assignment_id')
 
             # Validate marks value for the current 'data' entry (MOVED INSIDE THE LOOP)
             # Assuming marks can be 0 and up to 100.
@@ -204,8 +206,8 @@ def add_marks():
                 continue
             
             # Insert new marks record with term year for the CURRENT entry
-            cursor.execute("INSERT INTO marks (student_id, subject_id, teacher_id, marks, Term_year) VALUES (%s, %s, %s, %s, %s)", 
-                           (student_id, subject_id, teacher_id, marks, term_year))
+            cursor.execute("INSERT INTO marks (student_id, subject_id, teacher_id, marks, Term_year, assignment_id) VALUES (%s, %s, %s, %s, %s, %s)", 
+                           (student_id, subject_id, teacher_id, marks, term_year, assignment_id))
             
             # Get the inserted record ID for the CURRENT entry
             marks_id = cursor.lastrowid
@@ -213,7 +215,8 @@ def add_marks():
                 "marks_id": marks_id,
                 "student_id": student_id,
                 "subject_id": subject_id,
-                "term_year": term_year
+                "term_year": term_year,
+                "assignment_id": assignment_id
             })
             logging.info(f"Successfully added marks with ID: {marks_id} for student {student_id}")
         
