@@ -7,7 +7,7 @@ from token_verify import token_required
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-std = Blueprint('student',__name__)
+std = Blueprint('get_student',__name__)
 
 @std.route('/student/<int:student_id>', methods=['GET'])
 
@@ -22,7 +22,7 @@ def get_student( student_id):
         cursor = connection.cursor()
         cursor.execute("""
             SELECT
-                s.student_id, sa.assignment_id s.Last_name, s.Other_names, s.Address, s.Email, s.Date_of_birth,
+                s.student_id, s.Last_name, s.Other_names, s.Address, s.Email, s.Date_of_birth,
                 s.Parent_name, s.Gender, s.Contact_number, s.Parent_nic, s.User_name, s.Index_number,
                 s.class_id AS student_class_id, 
                 m.subject_id, m.teacher_id, m.Term_year, m.marks, m.marks_id, 
@@ -42,7 +42,7 @@ def get_student( student_id):
 
         if not results:
             logging.info(f"Student with ID {student_id} not found or has no marks/class data.")
-            return jsonify({'error': 'Student not found or no data available'}), 404
+            return jsonify({'error': 'Student Has Not Marks Yet'}), 404
 
         # Initialize student data structure
         student_data = {

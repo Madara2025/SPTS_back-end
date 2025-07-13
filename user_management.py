@@ -57,8 +57,8 @@ def get_students():
                 'parent_nic': row[9],
                 'user_name': row[10],
                 'index_number': row [11],
-                'grade': row[20],
-                'class_name': row[21],
+                'grade': row[21],
+                'class_name': row[22],
                 'permission': row[18]
             })
             
@@ -483,8 +483,7 @@ def add_teacher():
 
 #get on teacher using teacher_id            
 @usr.route('/teachers/<int:teacher_id>', methods=['GET'])
-
-def get_teacher( teacher_id):
+def get_teacher(teacher_id):
     logging.info(f"GET request for /teachers/{teacher_id}")
     connection = None
     cursor = None

@@ -241,3 +241,73 @@ def add_marks():
         if connection:
             connection.close()
         logging.info("Database resources released")
+
+#get student marks
+
+@std_marks.route('/subject/view/<int:class_id>/<int:subject_id>', methods = ['GET'])
+def get_marks(class_id,subject_id):
+
+    logging.info(f"Get all students from GET request for /subject/view") 
+    
+    connection = None
+    cursor = None
+
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+        cursor.execute("""
+        SELECT 
+            st.Index_number,
+            st.Last_name, 
+            st.Other_names,
+            m.marks
+        FROM 
+            student st
+        JOIN 
+            marks m ON st.student_id = m.student_id
+        JOIN 
+            studentsubject ss ON st.student_id = ss.student_id
+        WHERE 
+            ss.subject_id = %s
+            AND ss.class_id = %s
+            AND m.subject_id = ss.subject_id;
+    """, (subject_id, class_id))  
+
+
+        results = cursor.fetchall()
+
+        if not results:
+            logging.info(f"marks with  {class_id} {subject_id} not found or has no class data.")
+            return jsonify({'error': 'marks not found or no data available'}), 404
+        
+        class_list = [] # create array
+        
+        for row in results :
+            class_list.append({
+                # 'Term_year': row[0],
+                'marks': row[3],
+                'Last_name': row[1],
+                'Other_names': row[2],
+                'Index_number': row[0],
+                # 'marks_id':row[2]
+                
+
+            })
+            
+        logging.info(f'Class list compiled: {class_list}')
+        return jsonify(class_list)
+    except Exception as e:
+
+        logging.error(f'Error in get_marks(): {e}', exc_info=True)
+        if connection:        
+            connection.rollback()
+        return jsonify({'error': str(e)}), 500
+
+    finally:
+        
+        if cursor:
+            cursor.close()
+            logging.info('Cursor closed')
+        if connection:
+            connection.close()
+            logging.info('Connection closed')
